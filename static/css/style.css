@@ -1,0 +1,103 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.banner {
+    background-color: #343a40;
+    color: white;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 30px;
+    border-radius: 0 0 10px 10px;
+}
+
+.scan-card {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.results-card {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-top: 30px;
+}
+
+.port-table {
+    width: 100%;
+    margin-top: 20px;
+}
+
+.progress {
+    height: 25px;
+    margin-top: 10px;
+    margin-bottom: 15px;
+}
+
+.port-badge {
+    font-size: 14px;
+    padding: 5px 10px;
+    margin: 3px;
+    display: inline-block;
+}
+
+.status-badge {
+    font-size: 14px;
+    padding: 5px 10px;
+    margin-left: 10px;
+}
+
+#history-section {
+    margin-top: 40px;
+}
+
+.history-item {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+
+.history-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.progress-container {
+    margin: 20px 0;
+}
+
+#progress-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#open-ports-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.completed {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.running {
+    background-color: #fff3cd;
+    border-color: #ffeeba;
+}
+
+.failed {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}

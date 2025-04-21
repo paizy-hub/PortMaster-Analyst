@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PortMaster Analyst Web</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="banner">
+        <h1><i class="fas fa-network-wired"></i> PortMaster Analyst Web</h1>
+        <p>Advanced Port Scanner with BFS/DFS Algorithms</p>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="scan-card">
+                    <h3><i class="fas fa-cogs"></i> Scan Configuration</h3>
+                    <hr>
+                    <form id="scan-form">
+                        <div class="mb-3">
+                            <label for="target" class="form-label">Target IP:</label>
+                            <input type="text" class="form-control" id="target" placeholder="e.g., 192.168.1.1" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Algoritma Scanning:</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="algorithm" id="bfs" value="bfs" checked>
+                                <label class="form-check-label" for="bfs">
+                                    BFS (Breadth-First Search)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="algorithm" id="dfs" value="dfs">
+                                <label class="form-check-label" for="dfs">
+                                    DFS (Depth-First Search)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="common_ports_first" checked>
+                                <label class="form-check-label" for="common_ports_first">
+                                    Scan port umum terlebih dahulu
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="max_threads" class="form-label">Jumlah maksimum thread:</label>
+                            <input type="number" class="form-control" id="max_threads" value="100" min="1" max="500">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Mulai Scanning
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="scan-card" id="current-scan" style="display: none;">
+                    <h3><i class="fas fa-tasks"></i> Scan Progress <span id="scan-status-badge" class="badge bg-warning status-badge">Scanning...</span></h3>
+                    <hr>
+                    <div id="scan-info">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Target:</strong> <span id="scan-target"></span></p>
+                                <p><strong>Algorithm:</strong> <span id="scan-algorithm"></span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Start Time:</strong> <span id="scan-start-time"></span></p>
+                                <p><strong>Common Ports First:</strong> <span id="scan-common-ports"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-container">
+                        <label id="progress-label">Progress: <span id="progress-percent">0%</span></label>
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="scan-progress-bar"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h5>Open Ports:</h5>
+                        <div id="open-ports-container">
+                            <div id="port-count" class="mb-2">Found: <span>0</span></div>
+                            <div id="open-ports-list"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="results-card" id="scan-results" style="display: none;">
+                    <h3><i class="fas fa-clipboard-list"></i> Final Results</h3>
+                    <hr>
+                    <div id="results-info">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Target:</strong> <span id="results-target"></span></p>
+                                <p><strong>Algorithm:</strong> <span id="results-algorithm"></span></p>
+                                <p><strong>Scan Duration:</strong> <span id="results-duration"></span> seconds</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Start Time:</strong> <span id="results-start-time"></span></p>
+                                <p><strong>End Time:</strong> <span id="results-end-time"></span></p>
+                                <p><strong>Total Ports Scanned:</strong> <span id="results-ports-scanned"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h5>Open Ports:</h5>
+                    <div id="results-open-ports">
+                        <table class="table port-table">
+                            <thead>
+                                <tr>
+                                    <th>Port</th>
+                                    <th>Service</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-ports-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="history-section">
+            <h3><i class="fas fa-history"></i> Scan History</h3>
+            <hr>
+            <div id="history-list" class="row">
+                <!-- History items will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.0/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
