@@ -141,15 +141,74 @@ function displayFinalResults(data) {
     // Populate ports table
     $('#results-ports-table').empty();
     if (data.open_ports.length > 0) {
-        data.open_ports.forEach(function(portData) {
+        // Sort ports by risk level (Critical -> High -> Medium -> Low -> Unknown)
+        const riskOrder = {
+            'Critical': 1,
+            'High': 2, 
+            'Medium': 3, 
+            'Low': 4, 
+            'Unknown': 5
+        };
+        
+        data.open_ports.sort((a, b) => {
+            return (riskOrder[a.risk_level] || 999) - (riskOrder[b.risk_level] || 999);
+        });
+        
+        data.open_ports.forEach(function(portData, index) {
             const row = $('<tr></tr>');
             row.append($('<td></td>').text(portData.port));
             row.append($('<td></td>').text(portData.service));
+            
+            // Risk level with color-coded badge
+            const riskLevel = portData.risk_level || 'Unknown';
+            const riskBadge = $('<span class="risk-badge"></span>')
+                .addClass('risk-' + riskLevel.toLowerCase())
+                .text(riskLevel);
+            row.append($('<td></td>').append(riskBadge));
+            
+            // Details button
+            const detailsButton = $('<span class="port-details-button"></span>')
+                .html('<i class="fas fa-info-circle"></i> Details')
+                .attr('data-port-index', index);
+            row.append($('<td></td>').append(detailsButton));
+            
             $('#results-ports-table').append(row);
+            
+            // Add hidden details panel row
+            const detailsRow = $('<tr class="port-details-row" style="display: none;"></tr>');
+            const detailsCell = $('<td colspan="4"></td>');
+            const detailsPanel = $('<div class="port-details-panel"></div>')
+                .addClass('risk-' + riskLevel.toLowerCase() + '-panel');
+            
+            // Risk description
+            if (portData.risk_description) {
+                detailsPanel.append(
+                    $('<div class="port-details-header"></div>').text('Risk Description:'),
+                    $('<div class="port-details-content"></div>').text(portData.risk_description)
+                );
+            }
+            
+            // Recommendations
+            if (portData.recommendations) {
+                detailsPanel.append(
+                    $('<div class="port-details-header"></div>').text('Recommendations:'),
+                    $('<div class="port-details-content"></div>').text(portData.recommendations)
+                );
+            }
+            
+            detailsCell.append(detailsPanel);
+            detailsRow.append(detailsCell);
+            $('#results-ports-table').append(detailsRow);
+        });
+        
+        // Add click handlers for details buttons
+        $('.port-details-button').on('click', function() {
+            const index = $(this).data('port-index');
+            $(this).closest('tr').next('.port-details-row').toggle();
         });
     } else {
         const row = $('<tr></tr>');
-        row.append($('<td colspan="2" class="text-center"></td>').text('No open ports found'));
+        row.append($('<td colspan="4" class="text-center"></td>').text('No open ports found'));
         $('#results-ports-table').append(row);
     }
     

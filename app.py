@@ -8,6 +8,131 @@ import json
 
 app = Flask(__name__, static_folder='static')
 
+PORT_RISK_INFO = {
+    21: {
+        "name": "FTP",
+        "risk_level": "High",
+        "description": "File Transfer Protocol sering rentan terhadap brute force dan serangan man-in-the-middle. Transmisi tidak terenkripsi.",
+        "recommendations": "Gunakan SFTP atau FTPS sebagai gantinya. Batasi akses dengan firewall dan autentikasi yang kuat."
+    },
+    22: {
+        "name": "SSH",
+        "risk_level": "Medium",
+        "description": "Secure Shell menyediakan akses shell terenkripsi, tetapi dapat menjadi target serangan brute force.",
+        "recommendations": "Gunakan key-based authentication, nonaktifkan login root, batasi akses dengan fail2ban."
+    },
+    23: {
+        "name": "Telnet",
+        "risk_level": "Critical",
+        "description": "Telnet mengirimkan data tanpa enkripsi, termasuk kredensi login.",
+        "recommendations": "Nonaktifkan Telnet dan gunakan SSH sebagai gantinya."
+    },
+    25: {
+        "name": "SMTP",
+        "risk_level": "Medium",
+        "description": "Simple Mail Transfer Protocol dapat digunakan untuk spam relay jika tidak dikonfigurasi dengan baik.",
+        "recommendations": "Gunakan SMTP AUTH, TLS, dan batasi relay."
+    },
+    53: {
+        "name": "DNS",
+        "risk_level": "Medium",
+        "description": "Domain Name System rentan terhadap cache poisoning dan DoS jika tidak dikonfigurasi dengan baik.",
+        "recommendations": "Gunakan DNSSEC, batasi transfer zona, perbarui secara rutin."
+    },
+    80: {
+        "name": "HTTP",
+        "risk_level": "High",
+        "description": "Hypertext Transfer Protocol mengirimkan data tanpa enkripsi. Rentan terhadap sniffing dan MITM.",
+        "recommendations": "Gunakan HTTPS (port 443) sebagai gantinya dengan sertifikat valid."
+    },
+    110: {
+        "name": "POP3",
+        "risk_level": "High",
+        "description": "Post Office Protocol mengirimkan email dan kredensi tanpa enkripsi secara default.",
+        "recommendations": "Gunakan POP3S (port 995) dengan TLS/SSL sebagai gantinya."
+    },
+    135: {
+        "name": "RPC",
+        "risk_level": "High",
+        "description": "Remote Procedure Call digunakan oleh Windows dan sering menjadi target eksploitasi.",
+        "recommendations": "Blokir port ini di firewall eksternal."
+    },
+    139: {
+        "name": "NetBIOS",
+        "risk_level": "High",
+        "description": "NetBIOS digunakan untuk sharing file Windows, rentan terhadap berbagai jenis serangan.",
+        "recommendations": "Blokir di firewall eksternal, gunakan VPN untuk akses jarak jauh."
+    },
+    143: {
+        "name": "IMAP",
+        "risk_level": "High",
+        "description": "Internet Message Access Protocol mengirimkan email dan kredensi tanpa enkripsi secara default.",
+        "recommendations": "Gunakan IMAPS (port 993) dengan TLS/SSL sebagai gantinya."
+    },
+    443: {
+        "name": "HTTPS",
+        "risk_level": "Low",
+        "description": "HTTP Secure menyediakan komunikasi terenkripsi, tetapi masih dapat rentan terhadap masalah konfigurasi.",
+        "recommendations": "Pastikan sertifikat valid, gunakan TLS terbaru, nonaktifkan protokol lama."
+    },
+    445: {
+        "name": "SMB",
+        "risk_level": "Critical",
+        "description": "Server Message Block digunakan untuk sharing file Windows dan sangat rentan, termasuk eksploitasi EternalBlue.",
+        "recommendations": "Blokir di firewall eksternal, perbarui patch secara rutin, gunakan versi terbaru."
+    },
+    993: {
+        "name": "IMAPS",
+        "risk_level": "Low",
+        "description": "IMAP over SSL/TLS menyediakan akses email terenkripsi.",
+        "recommendations": "Pastikan konfigurasi SSL/TLS yang aman dan perbarui secara rutin."
+    },
+    995: {
+        "name": "POP3S",
+        "risk_level": "Low",
+        "description": "POP3 over SSL/TLS menyediakan akses email terenkripsi.",
+        "recommendations": "Pastikan konfigurasi SSL/TLS yang aman dan perbarui secara rutin."
+    },
+    1723: {
+        "name": "PPTP",
+        "risk_level": "High",
+        "description": "Point-to-Point Tunneling Protocol untuk VPN memiliki kelemahan keamanan yang diketahui.",
+        "recommendations": "Gunakan OpenVPN, WireGuard, atau IPsec sebagai gantinya."
+    },
+    3306: {
+        "name": "MySQL",
+        "risk_level": "High",
+        "description": "Database MySQL terbuka dapat menjadi target brute force dan eksploitasi.",
+        "recommendations": "Batasi akses dengan firewall, gunakan autentikasi yang kuat, aktifkan SSL."
+    },
+    3389: {
+        "name": "RDP",
+        "risk_level": "Critical",
+        "description": "Remote Desktop Protocol sering menjadi target ransomware dan serangan brute force.",
+        "recommendations": "Gunakan VPN, aktifkan Network Level Authentication, batasi akses dengan firewall, gunakan autentikasi 2FA."
+    },
+    5900: {
+        "name": "VNC",
+        "risk_level": "Critical",
+        "description": "Virtual Network Computing sering dikonfigurasi tanpa enkripsi yang kuat.",
+        "recommendations": "Gunakan VPN, batasi akses dengan firewall, gunakan autentikasi yang kuat."
+    },
+    8080: {
+        "name": "HTTP Alternate",
+        "risk_level": "High",
+        "description": "Sering digunakan untuk web proxy atau server aplikasi, tetapi tanpa enkripsi.",
+        "recommendations": "Gunakan HTTPS, batasi akses dengan firewall, pindahkan ke port non-standar."
+    }
+}
+
+# Fungsi untuk mendapatkan informasi risiko port
+def get_port_risk_info(port):
+    return PORT_RISK_INFO.get(port, {
+        "name": "Unknown",
+        "risk_level": "Unknown",
+        "description": "Informasi tidak tersedia untuk port ini.",
+        "recommendations": "Lakukan penelitian lebih lanjut tentang layanan pada port ini."
+    })
 
 # Global variables to track scan progress
 scan_results = {}
@@ -50,6 +175,14 @@ class PortScanner:
                         if self.scan_id:
                             scan_results[self.scan_id]['open_ports'].append({'port': port, 'service': service})
                             scan_results[self.scan_id]['progress'] += 1
+                        risk_info = get_port_risk_info(port)
+                        if self.scan_id:
+                            scan_results[self.scan_id]['open_ports'][-1].update({
+                            'risk_level': risk_info['risk_level'],
+                            'risk_description': risk_info['description'],
+                            'recommendations': risk_info['recommendations']
+                })
+                            
                 s.close()
                 
                 with self.lock:
