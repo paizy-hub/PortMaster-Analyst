@@ -1,145 +1,62 @@
+import io
 import socket
 import threading
 import time
+import json
 from datetime import datetime
 from collections import deque
-from flask import Flask, request, jsonify, render_template
-import json
+from flask import Flask, request, jsonify, render_template, send_file
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
 
 app = Flask(__name__, static_folder='static')
 
+# -----------------------------
+# DATA PORT DAN RISK INFO
+# -----------------------------
 PORT_RISK_INFO = {
-    21: {
-        "name": "FTP",
-        "risk_level": "High",
-        "description": "File Transfer Protocol sering rentan terhadap brute force dan serangan man-in-the-middle. Transmisi tidak terenkripsi.",
-        "recommendations": "Gunakan SFTP atau FTPS sebagai gantinya. Batasi akses dengan firewall dan autentikasi yang kuat."
-    },
-    22: {
-        "name": "SSH",
-        "risk_level": "Medium",
-        "description": "Secure Shell menyediakan akses shell terenkripsi, tetapi dapat menjadi target serangan brute force.",
-        "recommendations": "Gunakan key-based authentication, nonaktifkan login root, batasi akses dengan fail2ban."
-    },
-    23: {
-        "name": "Telnet",
-        "risk_level": "Critical",
-        "description": "Telnet mengirimkan data tanpa enkripsi, termasuk kredensi login.",
-        "recommendations": "Nonaktifkan Telnet dan gunakan SSH sebagai gantinya."
-    },
-    25: {
-        "name": "SMTP",
-        "risk_level": "Medium",
-        "description": "Simple Mail Transfer Protocol dapat digunakan untuk spam relay jika tidak dikonfigurasi dengan baik.",
-        "recommendations": "Gunakan SMTP AUTH, TLS, dan batasi relay."
-    },
-    53: {
-        "name": "DNS",
-        "risk_level": "Medium",
-        "description": "Domain Name System rentan terhadap cache poisoning dan DoS jika tidak dikonfigurasi dengan baik.",
-        "recommendations": "Gunakan DNSSEC, batasi transfer zona, perbarui secara rutin."
-    },
-    80: {
-        "name": "HTTP",
-        "risk_level": "High",
-        "description": "Hypertext Transfer Protocol mengirimkan data tanpa enkripsi. Rentan terhadap sniffing dan MITM.",
-        "recommendations": "Gunakan HTTPS (port 443) sebagai gantinya dengan sertifikat valid."
-    },
-    110: {
-        "name": "POP3",
-        "risk_level": "High",
-        "description": "Post Office Protocol mengirimkan email dan kredensi tanpa enkripsi secara default.",
-        "recommendations": "Gunakan POP3S (port 995) dengan TLS/SSL sebagai gantinya."
-    },
-    135: {
-        "name": "RPC",
-        "risk_level": "High",
-        "description": "Remote Procedure Call digunakan oleh Windows dan sering menjadi target eksploitasi.",
-        "recommendations": "Blokir port ini di firewall eksternal."
-    },
-    139: {
-        "name": "NetBIOS",
-        "risk_level": "High",
-        "description": "NetBIOS digunakan untuk sharing file Windows, rentan terhadap berbagai jenis serangan.",
-        "recommendations": "Blokir di firewall eksternal, gunakan VPN untuk akses jarak jauh."
-    },
-    143: {
-        "name": "IMAP",
-        "risk_level": "High",
-        "description": "Internet Message Access Protocol mengirimkan email dan kredensi tanpa enkripsi secara default.",
-        "recommendations": "Gunakan IMAPS (port 993) dengan TLS/SSL sebagai gantinya."
-    },
-    443: {
-        "name": "HTTPS",
-        "risk_level": "Low",
-        "description": "HTTP Secure menyediakan komunikasi terenkripsi, tetapi masih dapat rentan terhadap masalah konfigurasi.",
-        "recommendations": "Pastikan sertifikat valid, gunakan TLS terbaru, nonaktifkan protokol lama."
-    },
-    445: {
-        "name": "SMB",
-        "risk_level": "Critical",
-        "description": "Server Message Block digunakan untuk sharing file Windows dan sangat rentan, termasuk eksploitasi EternalBlue.",
-        "recommendations": "Blokir di firewall eksternal, perbarui patch secara rutin, gunakan versi terbaru."
-    },
-    993: {
-        "name": "IMAPS",
-        "risk_level": "Low",
-        "description": "IMAP over SSL/TLS menyediakan akses email terenkripsi.",
-        "recommendations": "Pastikan konfigurasi SSL/TLS yang aman dan perbarui secara rutin."
-    },
-    995: {
-        "name": "POP3S",
-        "risk_level": "Low",
-        "description": "POP3 over SSL/TLS menyediakan akses email terenkripsi.",
-        "recommendations": "Pastikan konfigurasi SSL/TLS yang aman dan perbarui secara rutin."
-    },
-    1723: {
-        "name": "PPTP",
-        "risk_level": "High",
-        "description": "Point-to-Point Tunneling Protocol untuk VPN memiliki kelemahan keamanan yang diketahui.",
-        "recommendations": "Gunakan OpenVPN, WireGuard, atau IPsec sebagai gantinya."
-    },
-    3306: {
-        "name": "MySQL",
-        "risk_level": "High",
-        "description": "Database MySQL terbuka dapat menjadi target brute force dan eksploitasi.",
-        "recommendations": "Batasi akses dengan firewall, gunakan autentikasi yang kuat, aktifkan SSL."
-    },
-    3389: {
-        "name": "RDP",
-        "risk_level": "Critical",
-        "description": "Remote Desktop Protocol sering menjadi target ransomware dan serangan brute force.",
-        "recommendations": "Gunakan VPN, aktifkan Network Level Authentication, batasi akses dengan firewall, gunakan autentikasi 2FA."
-    },
-    5900: {
-        "name": "VNC",
-        "risk_level": "Critical",
-        "description": "Virtual Network Computing sering dikonfigurasi tanpa enkripsi yang kuat.",
-        "recommendations": "Gunakan VPN, batasi akses dengan firewall, gunakan autentikasi yang kuat."
-    },
-    8080: {
-        "name": "HTTP Alternate",
-        "risk_level": "High",
-        "description": "Sering digunakan untuk web proxy atau server aplikasi, tetapi tanpa enkripsi.",
-        "recommendations": "Gunakan HTTPS, batasi akses dengan firewall, pindahkan ke port non-standar."
-    }
+    21: {"name": "FTP", "risk_level": "High", "description": "File Transfer Protocol rentan brute force.", "recommendations": "Gunakan SFTP atau FTPS."},
+    22: {"name": "SSH", "risk_level": "Medium", "description": "Akses shell terenkripsi.", "recommendations": "Gunakan key authentication."},
+    23: {"name": "Telnet", "risk_level": "Critical", "description": "Data dikirim tanpa enkripsi.", "recommendations": "Gunakan SSH."},
+    25: {"name": "SMTP", "risk_level": "Medium", "description": "Dapat digunakan spam relay.", "recommendations": "Gunakan SMTP AUTH."},
+    53: {"name": "DNS", "risk_level": "Medium", "description": "Rentan cache poisoning.", "recommendations": "Gunakan DNSSEC."},
+    80: {"name": "HTTP", "risk_level": "High", "description": "Tidak terenkripsi.", "recommendations": "Gunakan HTTPS."},
+    110: {"name": "POP3", "risk_level": "High", "description": "Kredensial dikirim tanpa enkripsi.", "recommendations": "Gunakan POP3S."},
+    135: {"name": "RPC", "risk_level": "High", "description": "Sering dieksploitasi.", "recommendations": "Blokir port ini."},
+    139: {"name": "NetBIOS", "risk_level": "High", "description": "Rentan serangan file sharing.", "recommendations": "Blokir port eksternal."},
+    143: {"name": "IMAP", "risk_level": "High", "description": "Email tanpa enkripsi.", "recommendations": "Gunakan IMAPS."},
+    443: {"name": "HTTPS", "risk_level": "Low", "description": "Sudah terenkripsi.", "recommendations": "Gunakan TLS terbaru."},
+    445: {"name": "SMB", "risk_level": "Critical", "description": "Rentan ransomware.", "recommendations": "Update patch rutin."},
+    993: {"name": "IMAPS", "risk_level": "Low", "description": "Email terenkripsi.", "recommendations": "SSL/TLS aman."},
+    995: {"name": "POP3S", "risk_level": "Low", "description": "Email terenkripsi.", "recommendations": "SSL/TLS aman."},
+    1723: {"name": "PPTP", "risk_level": "High", "description": "VPN lemah.", "recommendations": "Gunakan OpenVPN."},
+    3306: {"name": "MySQL", "risk_level": "High", "description": "Database rentan.", "recommendations": "Aktifkan SSL."},
+    3389: {"name": "RDP", "risk_level": "Critical", "description": "Target ransomware.", "recommendations": "Gunakan VPN dan 2FA."},
+    5900: {"name": "VNC", "risk_level": "Critical", "description": "Tanpa enkripsi kuat.", "recommendations": "Gunakan VPN."},
+    8080: {"name": "HTTP Alt", "risk_level": "High", "description": "Proxy server tanpa enkripsi.", "recommendations": "Gunakan HTTPS."}
 }
 
-# Fungsi untuk mendapatkan informasi risiko port
 def get_port_risk_info(port):
     return PORT_RISK_INFO.get(port, {
         "name": "Unknown",
         "risk_level": "Unknown",
-        "description": "Informasi tidak tersedia untuk port ini.",
-        "recommendations": "Lakukan penelitian lebih lanjut tentang layanan pada port ini."
+        "description": "Informasi tidak tersedia.",
+        "recommendations": "Lakukan penelitian lebih lanjut."
     })
 
-# Global variables to track scan progress
+# -----------------------------
+# GLOBAL VAR UNTUK TRACKING
+# -----------------------------
 scan_results = {}
 scan_status = {}
 
+# -----------------------------
+# PORT SCANNER CLASS
+# -----------------------------
 class PortScanner:
-    def __init__(self, target, algorithm='bfs', common_ports_first=True, max_threads=100, scan_id=None):
+    def __init__(self, target, algorithm='bfs', common_ports_first=True, max_threads=100, scan_id=None, port_range=None):
         self.target = target
         self.algorithm = algorithm.lower()
         self.common_ports_first = common_ports_first
@@ -149,160 +66,113 @@ class PortScanner:
         self.active_threads = 0
         self.thread_semaphore = threading.Semaphore(max_threads)
         self.scan_id = scan_id
-        
-        # Daftar port yang umum digunakan
-        self.common_ports = [
-            21, 22, 23, 25, 53, 80, 110, 111, 135, 139, 143, 443, 445, 
-            993, 995, 1723, 3306, 3389, 5900, 8080
-        ]
-    
+        self.port_range = port_range if port_range else (1, 1024)
+        self.common_ports = [21,22,23,25,53,80,110,135,139,143,443,445,993,995,1723,3306,3389,5900,8080]
+
+        # filter hanya yang masuk range
+        if port_range:
+            self.common_ports = [p for p in self.common_ports if port_range[0] <= p <= port_range[1]]
+
     def scan_port(self, port):
-        """Scan satu port dan tambahkan ke daftar jika terbuka"""
         try:
             with self.thread_semaphore:
-                with self.lock:
-                    self.active_threads += 1
-                
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.settimeout(1)
                 result = s.connect_ex((self.target, port))
-                
                 if result == 0:
                     service = self.get_service_name(port)
                     with self.lock:
                         self.open_ports.append((port, service))
-                        # Update scan results in global dict
                         if self.scan_id:
-                            scan_results[self.scan_id]['open_ports'].append({'port': port, 'service': service})
-                            scan_results[self.scan_id]['progress'] += 1
-                        risk_info = get_port_risk_info(port)
-                        if self.scan_id:
-                            scan_results[self.scan_id]['open_ports'][-1].update({
-                            'risk_level': risk_info['risk_level'],
-                            'risk_description': risk_info['description'],
-                            'recommendations': risk_info['recommendations']
-                })
-                            
+                            info = get_port_risk_info(port)
+                            scan_results[self.scan_id]['open_ports'].append({
+                                'port': port,
+                                'service': service,
+                                'risk_level': info['risk_level'],
+                                'risk_description': info['description'],
+                                'recommendations': info['recommendations']
+                            })
                 s.close()
-                
-                with self.lock:
-                    self.active_threads -= 1
+            if self.scan_id:
+                scan_results[self.scan_id]['progress'] += 1
         except:
-            with self.lock:
-                self.active_threads -= 1
-        
-        # Update progress
-        if self.scan_id:
-            scan_results[self.scan_id]['progress'] += 1
-    
+            pass
+
     def get_service_name(self, port):
-        """Identifikasi nama service berdasarkan port"""
         try:
-            service = socket.getservbyport(port)
-            return service
+            return socket.getservbyport(port)
         except:
             return "unknown"
-    
+
     def bfs_scan(self):
-        """Algoritma BFS untuk port scanning"""
-        # Inisialisasi queue untuk BFS
         queue = deque()
         visited = set()
-        
-        # Tambahkan port umum dulu jika diaktifkan
+
         if self.common_ports_first:
             for port in self.common_ports:
                 queue.append(port)
                 visited.add(port)
-        
-        # Tambahkan range port lainnya
-        scan_range = range(1, 1025)  # Scan only first 1024 ports for web interface
-        for port in scan_range:
+
+        for port in range(self.port_range[0], self.port_range[1]+1):
             if port not in visited:
                 queue.append(port)
                 visited.add(port)
-        
-        total_ports = len(queue)
+
         if self.scan_id:
-            scan_results[self.scan_id]['total_ports'] = total_ports
-            scan_results[self.scan_id]['ports_to_scan'] = list(queue)
+            scan_results[self.scan_id]['total_ports'] = len(queue)
         
-        # Mulai BFS scanning
         threads = []
         while queue:
-            port = queue.popleft()  # Dequeue port dari depan (FIFO)
-            
-            # Tunggu jika thread sudah maksimal
-            while self.active_threads >= self.max_threads:
+            port = queue.popleft()
+            while threading.active_count() > self.max_threads:
                 time.sleep(0.1)
-            
             t = threading.Thread(target=self.scan_port, args=(port,))
-            t.daemon = True
             t.start()
             threads.append(t)
-        
-        # Tunggu semua thread selesai
+
         for t in threads:
             t.join()
-        
+
         if self.scan_id:
             scan_status[self.scan_id] = "completed"
             scan_results[self.scan_id]['end_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            elapsed_time = time.time() - scan_results[self.scan_id]['start_timestamp']
-            scan_results[self.scan_id]['elapsed_time'] = f"{elapsed_time:.2f}"
-    
+            elapsed = time.time() - scan_results[self.scan_id]['start_timestamp']
+            scan_results[self.scan_id]['elapsed_time'] = f"{elapsed:.2f}"
+
     def dfs_scan(self):
-        """Algoritma DFS untuk port scanning"""
-        # Inisialisasi stack untuk DFS
         stack = []
-        visited = set()
-        
-        # Tambahkan port umum dulu jika diaktifkan
+
         if self.common_ports_first:
-            for port in reversed(self.common_ports):  # Reversed agar port umum di-scan terlebih dahulu
+            for port in reversed(self.common_ports):
                 stack.append(port)
-                visited.add(port)
-        
-        # Tambahkan range port lainnya
-        scan_range = range(1024, 0, -1)  # Scan only first 1024 ports for web interface
-        for port in scan_range:  # Reversed untuk DFS
-            if port not in visited:
+
+        for port in range(self.port_range[1], self.port_range[0]-1, -1):
+            if port not in stack:
                 stack.append(port)
-                visited.add(port)
-        
-        total_ports = len(stack)
+
         if self.scan_id:
-            scan_results[self.scan_id]['total_ports'] = total_ports
-            scan_results[self.scan_id]['ports_to_scan'] = list(stack)
+            scan_results[self.scan_id]['total_ports'] = len(stack)
         
-        # Mulai DFS scanning
         threads = []
         while stack:
-            port = stack.pop()  # Pop port dari belakang (LIFO)
-            
-            # Tunggu jika thread sudah maksimal
-            while self.active_threads >= self.max_threads:
+            port = stack.pop()
+            while threading.active_count() > self.max_threads:
                 time.sleep(0.1)
-            
             t = threading.Thread(target=self.scan_port, args=(port,))
-            t.daemon = True
             t.start()
             threads.append(t)
-        
-        # Tunggu semua thread selesai
+
         for t in threads:
             t.join()
-        
+
         if self.scan_id:
             scan_status[self.scan_id] = "completed"
             scan_results[self.scan_id]['end_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            elapsed_time = time.time() - scan_results[self.scan_id]['start_timestamp']
-            scan_results[self.scan_id]['elapsed_time'] = f"{elapsed_time:.2f}"
-    
+            elapsed = time.time() - scan_results[self.scan_id]['start_timestamp']
+            scan_results[self.scan_id]['elapsed_time'] = f"{elapsed:.2f}"
+
     def run(self):
-        """Jalankan port scanner dengan algoritma yang dipilih"""
         start_time = time.time()
-        
         if self.scan_id:
             scan_results[self.scan_id] = {
                 'target': self.target,
@@ -315,20 +185,19 @@ class PortScanner:
                 'total_ports': 0
             }
             scan_status[self.scan_id] = "running"
-        
+
         if self.algorithm == 'bfs':
             self.bfs_scan()
-        elif self.algorithm == 'dfs':
-            self.dfs_scan()
         else:
-            self.bfs_scan()
+            self.dfs_scan()
 
-# Route for the main page
+# -----------------------------
+# ROUTES
+# -----------------------------
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# API endpoint to start a new scan
 @app.route('/api/scan', methods=['POST'])
 def start_scan():
     data = request.json
@@ -336,50 +205,88 @@ def start_scan():
     algorithm = data.get('algorithm', 'bfs')
     common_ports_first = data.get('common_ports_first', True)
     max_threads = int(data.get('max_threads', 100))
-    
+    port_range_start = int(data.get('port_range_start', 1))
+    port_range_end = int(data.get('port_range_end', 1024))
+    port_range = (port_range_start, port_range_end)
+
     scan_id = f"{target}_{int(time.time())}"
-    
-    # Start scan in a background thread
     scanner = PortScanner(
         target=target,
         algorithm=algorithm,
         common_ports_first=common_ports_first,
         max_threads=max_threads,
-        scan_id=scan_id
+        scan_id=scan_id,
+        port_range=port_range
     )
-    
-    scan_thread = threading.Thread(target=scanner.run)
-    scan_thread.daemon = True
-    scan_thread.start()
-    
-    return jsonify({
-        'scan_id': scan_id,
-        'status': 'started',
-        'target': target
-    })
+    threading.Thread(target=scanner.run, daemon=True).start()
 
-# API endpoint to get scan status and results
+    return jsonify({'scan_id': scan_id, 'status': 'started', 'target': target})
+
 @app.route('/api/scan/<scan_id>', methods=['GET'])
-def get_scan_status(scan_id):
+def get_scan(scan_id):
     if scan_id not in scan_results:
         return jsonify({'error': 'Scan not found'}), 404
-    
-    result = scan_results[scan_id].copy()
+    result = scan_results[scan_id]
     result['status'] = scan_status.get(scan_id, 'unknown')
-    
     return jsonify(result)
 
-# API endpoint to get all scans
+@app.route('/api/scan/<scan_id>/export/pdf', methods=['GET'])
+def export_pdf(scan_id):
+    if scan_id not in scan_results:
+        return jsonify({'error': 'Scan not found'}), 404
+
+    scan_data = scan_results[scan_id]
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(50, height-50, "PortMaster Scan Report")
+    c.setFont("Helvetica", 10)
+    c.drawString(50, height-80, f"Target: {scan_data['target']}")
+    c.drawString(50, height-95, f"Algorithm: {scan_data['algorithm']}")
+    c.drawString(50, height-110, f"Start: {scan_data['start_time']}")
+    c.drawString(50, height-125, f"Total Ports: {scan_data['total_ports']}")
+
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, height-155, "Open Ports:")
+    y = height-170
+
+    if not scan_data['open_ports']:
+        c.drawString(50, y, "No open ports found.")
+    else:
+        for port in scan_data['open_ports']:
+            c.drawString(50, y, f"{port['port']} ({port['service']}) - Risk: {port['risk_level']}")
+            y -= 15
+            if y < 50:
+                c.showPage()
+                y = height-50
+
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+
+    return send_file(buffer, as_attachment=True, download_name=f"scan-{scan_id}.pdf", mimetype='application/pdf')
+
+# Route untuk ambil semua scan history
 @app.route('/api/scans', methods=['GET'])
-def get_all_scans():
-    result = []
-    for scan_id in scan_results:
-        scan_data = scan_results[scan_id].copy()
-        scan_data['scan_id'] = scan_id
-        scan_data['status'] = scan_status.get(scan_id, 'unknown')
-        result.append(scan_data)
-    
-    return jsonify(result)
+def list_all_scans():
+    history = []
+    for scan_id, data in scan_results.items():
+        entry = {
+            'scan_id': scan_id,
+            'target': data['target'],
+            'algorithm': data['algorithm'],
+            'start_time': data['start_time'],
+            'status': scan_status.get(scan_id, 'unknown'),
+            'open_ports': data['open_ports']
+        }
+        history.append(entry)
+    return jsonify(history)
 
+# -----------------------------
+# RUN SERVER
+# -----------------------------
 if __name__ == '__main__':
     app.run(debug=True)

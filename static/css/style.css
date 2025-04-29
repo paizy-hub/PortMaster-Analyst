@@ -242,3 +242,64 @@ body {
 .port-details-content {
     margin-bottom: 10px;
 }
+
+/* Styling untuk tombol export PDF */
+#export-pdf-btn {
+    margin-top: 10px;
+    margin-bottom: 15px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    transition: background-color 0.3s ease;
+}
+
+#export-pdf-btn:hover {
+    background-color: #5a6268;
+}
+
+/* Styling untuk tombol info */
+.info-btn {
+    padding: 0px 5px;
+    font-size: 12px;
+    line-height: 1;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Style untuk modal informasi */
+.modal-content {
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    background-color: #343a40;
+    color: white;
+    border-radius: 10px 10px 0 0;
+}
+
+.modal-body h6 {
+    color: #343a40;
+    margin-top: 15px;
+    font-weight: bold;
+}
+
+.modal-body ul li {
+    padding: 3px 0;
+}
+
+/* Perbaikan tampilan port range */
+#port_range_start, #port_range_end {
+    text-align: center;
+}
+
+.form-text {
+    font-size: 0.8rem;
+    margin-top: 5px;
+    color: rgba(255, 255, 255, 0.7);
+}

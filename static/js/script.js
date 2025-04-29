@@ -168,8 +168,9 @@ function displayFinalResults(data) {
             
             // Details button
             const detailsButton = $('<span class="port-details-button"></span>')
-                .html('<i class="fas fa-info-circle"></i> Details')
+                .html('<i class="fas fa-info-circle"></i> Info')
                 .attr('data-port-index', index);
+
             row.append($('<td></td>').append(detailsButton));
             
             $('#results-ports-table').append(row);
@@ -323,3 +324,119 @@ function loadScanDetails(scanId) {
         }
     });
 }
+
+// Tambahkan fungsi untuk export PDF
+function exportToPdf(scanId) {
+    if (!scanId) return;
+    
+    // Buat URL untuk download PDF
+    const pdfUrl = `/api/scan/${scanId}/export/pdf`;
+    
+    // Buat anchor element untuk download
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.target = '_blank';
+    
+    // Trigger click untuk download
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Perbarui fungsi startScan untuk menambahkan port range
+function startScan() {
+    const target = $('#target').val();
+    const algorithm = $('input[name="algorithm"]:checked').val();
+    const commonPortsFirst = $('#common_ports_first').is(':checked');
+    const maxThreads = $('#max_threads').val();
+    const portRangeStart = parseInt($('#port_range_start').val()) || 1;
+    const portRangeEnd = parseInt($('#port_range_end').val()) || 1024;
+    
+    // Validate inputs
+    if (!target) {
+        alert('Please enter a target IP address');
+        return;
+    }
+    
+    // Validate port range
+    if (portRangeStart > portRangeEnd) {
+        alert('Port range start must be less than or equal to port range end');
+        return;
+    }
+    
+    if (portRangeStart < 1 || portRangeEnd > 65535) {
+        alert('Port range must be between 1 and 65535');
+        return;
+    }
+    
+    // Prepare data for API
+    const scanData = {
+        target: target,
+        algorithm: algorithm,
+        common_ports_first: commonPortsFirst,
+        max_threads: maxThreads,
+        port_range_start: portRangeStart,
+        port_range_end: portRangeEnd
+    };
+    
+    // Clear previous results
+    $('#open-ports-list').empty();
+    $('#port-count span').text('0');
+    $('#scan-progress-bar').css('width', '0%');
+    $('#progress-percent').text('0%');
+    
+    // Show current scan section
+    $('#current-scan').show();
+    $('#scan-results').hide();
+    
+    // Send request to start scan
+    $.ajax({
+        url: '/api/scan',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(scanData),
+        success: function(response) {
+            // Store scan ID and start polling for updates
+            currentScanId = response.scan_id;
+            updateScanStatus();
+            
+            // Start automatic updates
+            if (updateIntervalId) {
+                clearInterval(updateIntervalId);
+            }
+            updateIntervalId = setInterval(updateScanStatus, 1000);
+        },
+        error: function(xhr, status, error) {
+            alert('Error starting scan: ' + error);
+            $('#current-scan').hide();
+        }
+    });
+}
+
+// Tambahkan event listener untuk export PDF button
+$(document).ready(function() {
+    // Existing handlers
+    $('#scan-form').on('submit', function(e) {
+        e.preventDefault();
+        startScan();
+    });
+    
+    // Load scan history
+    loadScanHistory();
+    
+    // Add PDF export button handler
+    $(document).on('click', '#export-pdf-btn', function() {
+        exportToPdf(currentScanId);
+    });
+    
+    // Validate port range inputs
+    $('#port_range_start, #port_range_end').on('change', function() {
+        const start = parseInt($('#port_range_start').val());
+        const end = parseInt($('#port_range_end').val());
+        
+        if (start > end) {
+            alert('Start port must be less than or equal to end port');
+            $(this).val($(this).attr('id') === 'port_range_start' ? end : start);
+        }
+    });
+});
