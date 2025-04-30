@@ -13,6 +13,22 @@ $(document).ready(function() {
     
     // Load scan history
     loadScanHistory();
+    
+    // Add PDF export button handler
+    $(document).on('click', '#export-pdf-btn', function() {
+        exportToPdf(currentScanId);
+    });
+    
+    // Validate port range inputs
+    $('#port_range_start, #port_range_end').on('change', function() {
+        const start = parseInt($('#port_range_start').val());
+        const end = parseInt($('#port_range_end').val());
+        
+        if (start > end) {
+            alert('Start port must be less than or equal to end port');
+            $(this).val($(this).attr('id') === 'port_range_start' ? end : start);
+        }
+    });
 });
 
 // Start a new scan
@@ -21,10 +37,24 @@ function startScan() {
     const algorithm = $('input[name="algorithm"]:checked').val();
     const commonPortsFirst = $('#common_ports_first').is(':checked');
     const maxThreads = $('#max_threads').val();
+    const portRangeStart = parseInt($('#port_range_start').val()) || 1;
+    const portRangeEnd = parseInt($('#port_range_end').val()) || 1024;
+    const scanMethod = $('#scan_method').val();
     
     // Validate inputs
     if (!target) {
         alert('Please enter a target IP address');
+        return;
+    }
+    
+    // Validate port range
+    if (portRangeStart > portRangeEnd) {
+        alert('Port range start must be less than or equal to port range end');
+        return;
+    }
+    
+    if (portRangeStart < 1 || portRangeEnd > 65535) {
+        alert('Port range must be between 1 and 65535');
         return;
     }
     
@@ -33,7 +63,10 @@ function startScan() {
         target: target,
         algorithm: algorithm,
         common_ports_first: commonPortsFirst,
-        max_threads: maxThreads
+        max_threads: maxThreads,
+        port_range_start: portRangeStart,
+        port_range_end: portRangeEnd,
+        scan_method: scanMethod
     };
     
     // Clear previous results
@@ -83,6 +116,12 @@ function updateScanStatus() {
             $('#scan-algorithm').text(data.algorithm);
             $('#scan-start-time').text(data.start_time);
             $('#scan-common-ports').text(data.common_ports_first ? 'Yes' : 'No');
+            $('#scan-method').text(data.scan_method || 'connect');
+            
+            // Display port range if available
+            if (data.port_range_start && data.port_range_end) {
+                $('#scan-port-range').text(`${data.port_range_start}-${data.port_range_end}`);
+            }
             
             // Update progress
             const progress = data.total_ports > 0 ? (data.progress / data.total_ports * 100) : 0;
@@ -133,6 +172,7 @@ function displayFinalResults(data) {
     // Populate results data
     $('#results-target').text(data.target);
     $('#results-algorithm').text(data.algorithm);
+    $('#results-scan-method').text(data.scan_method || 'connect');
     $('#results-start-time').text(data.start_time);
     $('#results-end-time').text(data.end_time || 'N/A');
     $('#results-duration').text(data.elapsed_time || 'N/A');
@@ -141,15 +181,75 @@ function displayFinalResults(data) {
     // Populate ports table
     $('#results-ports-table').empty();
     if (data.open_ports.length > 0) {
-        data.open_ports.forEach(function(portData) {
+        // Sort ports by risk level (Critical -> High -> Medium -> Low -> Unknown)
+        const riskOrder = {
+            'Critical': 1,
+            'High': 2, 
+            'Medium': 3, 
+            'Low': 4, 
+            'Unknown': 5
+        };
+        
+        data.open_ports.sort((a, b) => {
+            return (riskOrder[a.risk_level] || 999) - (riskOrder[b.risk_level] || 999);
+        });
+        
+        data.open_ports.forEach(function(portData, index) {
             const row = $('<tr></tr>');
             row.append($('<td></td>').text(portData.port));
             row.append($('<td></td>').text(portData.service));
+            
+            // Risk level with color-coded badge
+            const riskLevel = portData.risk_level || 'Unknown';
+            const riskBadge = $('<span class="risk-badge"></span>')
+                .addClass('risk-' + riskLevel.toLowerCase())
+                .text(riskLevel);
+            row.append($('<td></td>').append(riskBadge));
+            
+            // Details button
+            const detailsButton = $('<span class="port-details-button"></span>')
+                .html('<i class="fas fa-info-circle"></i> Info')
+                .attr('data-port-index', index);
+
+            row.append($('<td></td>').append(detailsButton));
+            
             $('#results-ports-table').append(row);
+            
+            // Add hidden details panel row
+            const detailsRow = $('<tr class="port-details-row" style="display: none;"></tr>');
+            const detailsCell = $('<td colspan="4"></td>');
+            const detailsPanel = $('<div class="port-details-panel"></div>')
+                .addClass('risk-' + riskLevel.toLowerCase() + '-panel');
+            
+            // Risk description
+            if (portData.risk_description) {
+                detailsPanel.append(
+                    $('<div class="port-details-header"></div>').text('Risk Description:'),
+                    $('<div class="port-details-content"></div>').text(portData.risk_description)
+                );
+            }
+            
+            // Recommendations
+            if (portData.recommendations) {
+                detailsPanel.append(
+                    $('<div class="port-details-header"></div>').text('Recommendations:'),
+                    $('<div class="port-details-content"></div>').text(portData.recommendations)
+                );
+            }
+            
+            detailsCell.append(detailsPanel);
+            detailsRow.append(detailsCell);
+            $('#results-ports-table').append(detailsRow);
+        });
+        
+        // Add click handlers for details buttons
+        $('.port-details-button').on('click', function() {
+            const index = $(this).data('port-index');
+            $(this).closest('tr').next('.port-details-row').toggle();
         });
     } else {
         const row = $('<tr></tr>');
-        row.append($('<td colspan="2" class="text-center"></td>').text('No open ports found'));
+        row.append($('<td colspan="4" class="text-center"></td>').text('No open ports found'));
         $('#results-ports-table').append(row);
     }
     
@@ -189,6 +289,9 @@ function loadScanHistory() {
             });
             
             historyLoaded = true;
+            
+            // Show history section
+            $('#history-section').show();
         },
         error: function() {
             console.log('Error loading scan history');
@@ -263,4 +366,22 @@ function loadScanDetails(scanId) {
             alert('Error loading scan details');
         }
     });
+}
+
+// Function for export to PDF
+function exportToPdf(scanId) {
+    if (!scanId) return;
+    
+    // Create URL for PDF download
+    const pdfUrl = `/api/scan/${scanId}/export/pdf`;
+    
+    // Create anchor element for download
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.target = '_blank';
+    
+    // Trigger click for download
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }

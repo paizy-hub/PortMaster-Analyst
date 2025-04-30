@@ -1,3 +1,73 @@
+/* ===== Global Variables ===== */
+:root {
+    --bg-gradient: linear-gradient(135deg, #1f1c2c, #928dab);
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --text-color: #000;
+    --accent-color: #6c63ff;
+    --accent-hover: #574b90;
+    --badge-success: #28a745;
+    --badge-warning: #ffc107;
+}
+
+/* ===== Modern Enhancements ===== */
+body {
+    background: var(--bg-gradient);
+    background-attachment: fixed;
+    color: var(--text-color);
+    font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.scan-card, .results-card, .history-item {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    color: var(--text-color);
+}
+
+.form-control {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    border: 1px solid #000000; /* Mengubah border menjadi hitam solid */
+    border-radius: 10px;
+}
+
+.form-control::placeholder {
+    color: rgba(255,255,255,0.6);
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: background 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+}
+
+.port-table {
+    color: #28a745;
+}
+
+.port-table thead {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.status-badge {
+    border-radius: 20px;
+}
+
+.history-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== Original CSS Below (Unchanged) ===== */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f8f9fa;
@@ -100,4 +170,136 @@ body {
 .failed {
     background-color: #f8d7da;
     border-color: #f5c6cb;
+}
+
+.risk-badge {
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    color: white;
+    display: inline-block;
+}
+
+.risk-critical {
+    background-color: #dc3545;
+}
+
+.risk-high {
+    background-color: #fd7e14;
+}
+
+.risk-medium {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.risk-low {
+    background-color: #28a745;
+}
+
+.risk-unknown {
+    background-color: #6c757d;
+}
+
+.port-details-button {
+    cursor: pointer;
+    color: #0d6efd;
+}
+
+.port-details-button:hover {
+    text-decoration: underline;
+}
+
+.port-details-panel {
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    border-left: 4px solid #6c757d;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.risk-critical-panel {
+    border-left-color: #dc3545;
+}
+
+.risk-high-panel {
+    border-left-color: #fd7e14;
+}
+
+.risk-medium-panel {
+    border-left-color: #ffc107;
+}
+
+.risk-low-panel {
+    border-left-color: #28a745;
+}
+
+.port-details-header {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.port-details-content {
+    margin-bottom: 10px;
+}
+
+/* Styling untuk tombol export PDF */
+#export-pdf-btn {
+    margin-top: 10px;
+    margin-bottom: 15px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    transition: background-color 0.3s ease;
+}
+
+#export-pdf-btn:hover {
+    background-color: #5a6268;
+}
+
+/* Styling untuk tombol info */
+.info-btn {
+    padding: 0px 5px;
+    font-size: 12px;
+    line-height: 1;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Style untuk modal informasi */
+.modal-content {
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    background-color: #343a40;
+    color: white;
+    border-radius: 10px 10px 0 0;
+}
+
+.modal-body h6 {
+    color: #343a40;
+    margin-top: 15px;
+    font-weight: bold;
+}
+
+.modal-body ul li {
+    padding: 3px 0;
+}
+
+/* Perbaikan tampilan port range */
+#port_range_start, #port_range_end {
+    text-align: center;
+}
+
+.form-text {
+    font-size: 0.8rem;
+    margin-top: 5px;
+    color: rgba(255, 255, 255, 0.7);
 }

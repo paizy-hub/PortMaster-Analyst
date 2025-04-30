@@ -42,15 +42,48 @@
                             </div>
                         </div>
                         
+                        <!-- Dropdown untuk metode scan -->
+                        <div class="mb-3">
+                            <label for="scan_method" class="form-label">Scan Method:</label>
+                            <select class="form-select" id="scan_method">
+                                <option value="connect" selected>TCP Connect Scan</option>
+                                <option value="syn">SYN Scan</option>
+                                <option value="ack">ACK Scan</option>
+                                <option value="fin">FIN Scan</option>
+                                <option value="null">NULL Scan</option>
+                                <option value="xmas">XMAS Scan</option>
+                                <option value="udp">UDP Scan</option>
+                            </select>
+                            <small class="form-text text-muted">Connect Scan adalah metode paling dasar dan dapat digunakan oleh pengguna non-root.</small>
+                        </div>
+                        
+                        <!-- Checkbox scan port umum + info -->
                         <div class="mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="common_ports_first" checked>
                                 <label class="form-check-label" for="common_ports_first">
                                     Scan port umum terlebih dahulu
                                 </label>
+                                <button type="button" class="btn btn-sm btn-info ms-2 info-btn" data-bs-toggle="modal" data-bs-target="#commonPortsInfoModal">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
                             </div>
                         </div>
-                        
+
+                        <!-- Input port range -->
+                        <div class="mb-3">
+                            <label for="port_range" class="form-label">Port Range:</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <input type="number" class="form-control" id="port_range_start" placeholder="Start" value="1" min="1" max="65535">
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" class="form-control" id="port_range_end" placeholder="End" value="1024" min="1" max="65535">
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">Default: 1-1024 (well-known ports)</small>
+                        </div>
+
                         <div class="mb-3">
                             <label for="max_threads" class="form-label">Jumlah maksimum thread:</label>
                             <input type="number" class="form-control" id="max_threads" value="100" min="1" max="500">
@@ -72,10 +105,12 @@
                             <div class="col-md-6">
                                 <p><strong>Target:</strong> <span id="scan-target"></span></p>
                                 <p><strong>Algorithm:</strong> <span id="scan-algorithm"></span></p>
+                                <p><strong>Scan Method:</strong> <span id="scan-method"></span></p>
                             </div>
                             <div class="col-md-6">
                                 <p><strong>Start Time:</strong> <span id="scan-start-time"></span></p>
                                 <p><strong>Common Ports First:</strong> <span id="scan-common-ports"></span></p>
+                                <p><strong>Port Range:</strong> <span id="scan-port-range"></span></p>
                             </div>
                         </div>
                     </div>
@@ -104,6 +139,7 @@
                             <div class="col-md-6">
                                 <p><strong>Target:</strong> <span id="results-target"></span></p>
                                 <p><strong>Algorithm:</strong> <span id="results-algorithm"></span></p>
+                                <p><strong>Scan Method:</strong> <span id="results-scan-method"></span></p>
                                 <p><strong>Scan Duration:</strong> <span id="results-duration"></span> seconds</p>
                             </div>
                             <div class="col-md-6">
@@ -121,20 +157,138 @@
                                 <tr>
                                     <th>Port</th>
                                     <th>Service</th>
+                                    <th>Risk Level</th>
+                                    <th>Details</th>
                                 </tr>
                             </thead>
                             <tbody id="results-ports-table"></tbody>
                         </table>
                     </div>
+
+                    <!-- Tombol Export to PDF tidak disediakan karena backend yang ada tidak mendukung -->
                 </div>
             </div>
         </div>
         
-        <div id="history-section">
+        <div id="history-section" style="display: none;">
             <h3><i class="fas fa-history"></i> Scan History</h3>
             <hr>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Riwayat scan tidak tersimpan dalam session ini.
+            </div>
             <div id="history-list" class="row">
                 <!-- History items will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Info Common Ports -->
+    <div class="modal fade" id="commonPortsInfoModal" tabindex="-1" aria-labelledby="commonPortsInfoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="commonPortsInfoModalLabel">Tentang Fitur "Scan Port Umum Terlebih Dahulu"</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Fitur ini memprioritaskan pemindaian port-port yang sering digunakan sebelum memeriksa port lainnya. Tujuannya adalah untuk lebih cepat menemukan layanan-layanan umum yang mungkin berjalan pada target.</p>
+                    
+                    <h6>Port umum yang diprioritaskan:</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <ul class="list-unstyled">
+                                <li><strong>21</strong> - FTP</li>
+                                <li><strong>22</strong> - SSH</li>
+                                <li><strong>23</strong> - Telnet</li>
+                                <li><strong>25</strong> - SMTP</li>
+                                <li><strong>53</strong> - DNS</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <ul class="list-unstyled">
+                                <li><strong>80</strong> - HTTP</li>
+                                <li><strong>110</strong> - POP3</li>
+                                <li><strong>135</strong> - RPC</li>
+                                <li><strong>139</strong> - NetBIOS</li>
+                                <li><strong>143</strong> - IMAP</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <ul class="list-unstyled">
+                                <li><strong>443</strong> - HTTPS</li>
+                                <li><strong>445</strong> - SMB</li>
+                                <li><strong>3306</strong> - MySQL</li>
+                                <li><strong>3389</strong> - RDP</li>
+                                <li><strong>8080</strong> - HTTP Alt</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6>Algoritma Scanning:</h6>
+                    <p>Dengan opsi ini diaktifkan:</p>
+                    <ul>
+                        <li>Untuk <strong>BFS</strong> (Breadth-First Search): Port umum akan ditempatkan di awal queue</li>
+                        <li>Untuk <strong>DFS</strong> (Depth-First Search): Port umum akan ditempatkan di awal stack (dibalik)</li>
+                    </ul>
+                    
+                    <p>Hasilnya adalah port yang umum digunakan akan diperiksa lebih awal dalam proses scanning.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal untuk metode scan information -->
+    <div class="modal fade" id="scanMethodInfoModal" tabindex="-1" aria-labelledby="scanMethodInfoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="scanMethodInfoModalLabel">Metode Scan Port</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <h6>TCP Connect Scan</h6>
+                        <p>Metode scan paling dasar yang membuat koneksi TCP penuh. Mudah terdeteksi oleh firewall tetapi paling kompatibel.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>SYN Scan</h6>
+                        <p>Disebut juga "half-open scanning". Hanya mengirim paket SYN dan tidak menyelesaikan handshake TCP.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>ACK Scan</h6>
+                        <p>Mengirim paket dengan flag ACK untuk mendeteksi konfigurasi firewall stateless.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>FIN Scan</h6>
+                        <p>Mengirim paket dengan flag FIN untuk mencoba bypass firewall tertentu.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>NULL Scan</h6>
+                        <p>Mengirim paket TCP tanpa flag yang aktif.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>XMAS Scan</h6>
+                        <p>Mengirim paket dengan flag FIN, PSH, dan URG diaktifkan.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>UDP Scan</h6>
+                        <p>Mendeteksi port UDP yang terbuka, tetapi biasanya lebih lambat dari scan TCP.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Tutup</button>
+                </div>
             </div>
         </div>
     </div>
