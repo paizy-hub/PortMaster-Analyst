@@ -1,7 +1,7 @@
 
-# PortMaster-Analyst
+# SENA
 
-**PortMaster-Analyst** is a lightweight Flask-based web application designed to analyze and visualize network port activity. It provides a simple and interactive interface for understanding port usage on a system.
+**SENA** is a lightweight Flask-based web application designed to analyze and visualize network port activity. It provides a simple and interactive interface for understanding port usage on a system.
 
 ## Features
 
@@ -14,8 +14,8 @@
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/paizy-hub/PortMaster-Analyst.git
-cd PortMaster-Analyst
+git clone https://github.com/paizy-hub/SENA.git
+cd SENA
 ```
 
 ### 2. Create and activate a virtual environment (recommended)
@@ -43,7 +43,7 @@ The app will be available at `http://localhost:5000`.
 ## Project Structure
 
 ```
-PortMaster-Analyst/
+SENA/
 ├── app.py                 # Main Flask application
 ├── templates/             # HTML templates (Jinja2)
 │   └── index.html
