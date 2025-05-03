@@ -1,6 +1,12 @@
 
 # SENA
 
+<div align="center">
+  <img src="Image/SENA-Logo.JPEG" alt="SENA-Logo" width="600"/>
+ 
+  
+</div>
+
 **SENA** is a lightweight Flask-based web application designed to analyze and visualize network port activity. It provides a simple and interactive interface for understanding port usage on a system.
 
 ## Features
