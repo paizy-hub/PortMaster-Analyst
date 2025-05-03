@@ -2,7 +2,7 @@
 # SENA
 
 <div align="center">
-  <img src="Image/SENA-Logo.JPEG" alt="SENA-Logo" width="600"/>
+  <img src="Image/SENA-Logo.jpeg" alt="SENA-Logo" width="600"/>
  
   
 </div>
