@@ -17,47 +17,60 @@ $(document).ready(function() {
 
 // Start a new scan
 function startScan() {
-    const target = $('#target').val();
+    // Ambil nilai input dari form
+    const target = $('#target').val().trim();
     const algorithm = $('input[name="algorithm"]:checked').val();
     const commonPortsFirst = $('#common_ports_first').is(':checked');
-    const maxThreads = $('#max_threads').val();
-    
-    // Validate inputs
+    const maxThreads = parseInt($('#max_threads').val()) || 10;
+    const portRangeStart = parseInt($('#port_range_start').val()) || 1;
+    const portRangeEnd = parseInt($('#port_range_end').val()) || 1024;
+
+    // Validasi input target
     if (!target) {
         alert('Please enter a target IP address');
         return;
     }
-    
-    // Prepare data for API
+
+    // Validasi port range
+    if (portRangeStart > portRangeEnd) {
+        alert('Port range start must be less than or equal to port range end');
+        return;
+    }
+
+    if (portRangeStart < 1 || portRangeEnd > 65535) {
+        alert('Port range must be between 1 and 65535');
+        return;
+    }
+
+    // Siapkan data untuk dikirim ke API
     const scanData = {
         target: target,
         algorithm: algorithm,
         common_ports_first: commonPortsFirst,
-        max_threads: maxThreads
+        max_threads: maxThreads,
+        port_range_start: portRangeStart,
+        port_range_end: portRangeEnd
     };
-    
-    // Clear previous results
+
+    // Reset UI hasil sebelumnya
     $('#open-ports-list').empty();
     $('#port-count span').text('0');
     $('#scan-progress-bar').css('width', '0%');
     $('#progress-percent').text('0%');
-    
-    // Show current scan section
     $('#current-scan').show();
     $('#scan-results').hide();
-    
-    // Send request to start scan
+
+    // Kirim request ke server
     $.ajax({
         url: '/api/scan',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(scanData),
         success: function(response) {
-            // Store scan ID and start polling for updates
             currentScanId = response.scan_id;
             updateScanStatus();
-            
-            // Start automatic updates
+
+            // Hentikan polling sebelumnya jika ada
             if (updateIntervalId) {
                 clearInterval(updateIntervalId);
             }
@@ -66,49 +79,6 @@ function startScan() {
         error: function(xhr, status, error) {
             alert('Error starting scan: ' + error);
             $('#current-scan').hide();
-        }
-    });
-}
-
-// Update the scan status
-function updateScanStatus() {
-    if (!currentScanId) return;
-    
-    $.ajax({
-        url: '/api/scan/' + currentScanId,
-        type: 'GET',
-        success: function(data) {
-            // Update scan info
-            $('#scan-target').text(data.target);
-            $('#scan-algorithm').text(data.algorithm);
-            $('#scan-start-time').text(data.start_time);
-            $('#scan-common-ports').text(data.common_ports_first ? 'Yes' : 'No');
-            
-            // Update progress
-            const progress = data.total_ports > 0 ? (data.progress / data.total_ports * 100) : 0;
-            $('#scan-progress-bar').css('width', progress + '%');
-            $('#progress-percent').text(Math.round(progress) + '%');
-            
-            // Update open ports
-            updateOpenPorts(data.open_ports);
-            
-            // Check if scan is complete
-            if (data.status === 'completed') {
-                clearInterval(updateIntervalId);
-                updateIntervalId = null;
-                
-                // Update status badge
-                $('#scan-status-badge').removeClass('bg-warning').addClass('bg-success').text('Completed');
-                
-                // Show final results
-                displayFinalResults(data);
-                
-                // Refresh history
-                loadScanHistory();
-            }
-        },
-        error: function() {
-            console.log('Error fetching scan status');
         }
     });
 }
@@ -341,76 +311,6 @@ function exportToPdf(scanId) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-}
-
-// Perbarui fungsi startScan untuk menambahkan port range
-function startScan() {
-    const target = $('#target').val();
-    const algorithm = $('input[name="algorithm"]:checked').val();
-    const commonPortsFirst = $('#common_ports_first').is(':checked');
-    const maxThreads = $('#max_threads').val();
-    const portRangeStart = parseInt($('#port_range_start').val()) || 1;
-    const portRangeEnd = parseInt($('#port_range_end').val()) || 1024;
-    
-    // Validate inputs
-    if (!target) {
-        alert('Please enter a target IP address');
-        return;
-    }
-    
-    // Validate port range
-    if (portRangeStart > portRangeEnd) {
-        alert('Port range start must be less than or equal to port range end');
-        return;
-    }
-    
-    if (portRangeStart < 1 || portRangeEnd > 65535) {
-        alert('Port range must be between 1 and 65535');
-        return;
-    }
-    
-    // Prepare data for API
-    const scanData = {
-        target: target,
-        algorithm: algorithm,
-        common_ports_first: commonPortsFirst,
-        max_threads: maxThreads,
-        port_range_start: portRangeStart,
-        port_range_end: portRangeEnd
-    };
-    
-    // Clear previous results
-    $('#open-ports-list').empty();
-    $('#port-count span').text('0');
-    $('#scan-progress-bar').css('width', '0%');
-    $('#progress-percent').text('0%');
-    
-    // Show current scan section
-    $('#current-scan').show();
-    $('#scan-results').hide();
-    
-    // Send request to start scan
-    $.ajax({
-        url: '/api/scan',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(scanData),
-        success: function(response) {
-            // Store scan ID and start polling for updates
-            currentScanId = response.scan_id;
-            updateScanStatus();
-            
-            // Start automatic updates
-            if (updateIntervalId) {
-                clearInterval(updateIntervalId);
-            }
-            updateIntervalId = setInterval(updateScanStatus, 1000);
-        },
-        error: function(xhr, status, error) {
-            alert('Error starting scan: ' + error);
-            $('#current-scan').hide();
-        }
-    });
 }
 
 // Tambahkan event listener untuk export PDF button
