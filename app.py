@@ -230,6 +230,29 @@ def get_scan(scan_id):
     result['status'] = scan_status.get(scan_id, 'unknown')
     return jsonify(result)
 
+# ENDPOINT BARU: status scan untuk progress bar
+@app.route('/api/scan/<scan_id>/status', methods=['GET'])
+def get_scan_status(scan_id):
+    if scan_id not in scan_results:
+        return jsonify({'error': 'Scan not found'}), 404
+    
+    scan_data = scan_results[scan_id]
+    total_ports = scan_data['total_ports']
+    current_progress = scan_data['progress']
+    
+    # Hitung progress sebagai nilai antara 0-1
+    progress_ratio = current_progress / total_ports if total_ports > 0 else 0
+    
+    response = {
+        'status': scan_status.get(scan_id, 'unknown'),
+        'progress': progress_ratio,
+        'open_ports': scan_data['open_ports'],
+        'current': current_progress,
+        'total': total_ports
+    }
+    
+    return jsonify(response)
+
 @app.route('/api/scan/<scan_id>/export/pdf', methods=['GET'])
 def export_pdf(scan_id):
     if scan_id not in scan_results:

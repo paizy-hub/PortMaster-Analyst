@@ -13,36 +13,50 @@ $(document).ready(function() {
     
     // Load scan history
     loadScanHistory();
+    
+    // Add PDF export button handler
+    $(document).on('click', '#export-pdf-btn', function() {
+        exportToPdf(currentScanId);
+    });
+    
+    // Validate port range inputs
+    $('#port_range_start, #port_range_end').on('change', function() {
+        const start = parseInt($('#port_range_start').val());
+        const end = parseInt($('#port_range_end').val());
+        
+        if (start > end) {
+            alert('Start port must be less than or equal to end port');
+            $(this).val($(this).attr('id') === 'port_range_start' ? end : start);
+        }
+    });
 });
 
-// Start a new scan
 function startScan() {
-    // Ambil nilai input dari form
-    const target = $('#target').val().trim();
+    const target = $('#target').val();
     const algorithm = $('input[name="algorithm"]:checked').val();
     const commonPortsFirst = $('#common_ports_first').is(':checked');
-    const maxThreads = parseInt($('#max_threads').val()) || 10;
+    const maxThreads = $('#max_threads').val();
     const portRangeStart = parseInt($('#port_range_start').val()) || 1;
     const portRangeEnd = parseInt($('#port_range_end').val()) || 1024;
-
-    // Validasi input target
+    
+    // Validate inputs
     if (!target) {
         alert('Please enter a target IP address');
         return;
     }
-
-    // Validasi port range
+    
+    // Validate port range
     if (portRangeStart > portRangeEnd) {
         alert('Port range start must be less than or equal to port range end');
         return;
     }
-
+    
     if (portRangeStart < 1 || portRangeEnd > 65535) {
         alert('Port range must be between 1 and 65535');
         return;
     }
-
-    // Siapkan data untuk dikirim ke API
+    
+    // Prepare data for API
     const scanData = {
         target: target,
         algorithm: algorithm,
@@ -51,26 +65,32 @@ function startScan() {
         port_range_start: portRangeStart,
         port_range_end: portRangeEnd
     };
-
-    // Reset UI hasil sebelumnya
+    
+    // Clear previous results
     $('#open-ports-list').empty();
     $('#port-count span').text('0');
     $('#scan-progress-bar').css('width', '0%');
     $('#progress-percent').text('0%');
+    
+    // Show current scan section
     $('#current-scan').show();
     $('#scan-results').hide();
-
-    // Kirim request ke server
+    
+    // Update status badge
+    $('#scan-status-badge').removeClass('bg-success').addClass('bg-warning').text('Scanning...');
+    
+    // Send request to start scan
     $.ajax({
         url: '/api/scan',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(scanData),
         success: function(response) {
+            // Store scan ID and start polling for updates
             currentScanId = response.scan_id;
             updateScanStatus();
-
-            // Hentikan polling sebelumnya jika ada
+            
+            // Start automatic updates
             if (updateIntervalId) {
                 clearInterval(updateIntervalId);
             }
@@ -79,6 +99,74 @@ function startScan() {
         error: function(xhr, status, error) {
             alert('Error starting scan: ' + error);
             $('#current-scan').hide();
+        }
+    });
+}
+
+// Update scan status
+function updateScanStatus() {
+    if (!currentScanId) return;
+    
+    console.log('Fetching status for scan ID:', currentScanId);
+    
+    // Menggunakan direktori API yang sudah ada (bukan /status)
+    $.ajax({
+        url: '/api/scan/' + currentScanId,
+        type: 'GET',
+        success: function(data) {
+            console.log('Status data received:', data);
+            
+            // Periksa struktur data
+            if (!data || typeof data !== 'object') {
+                console.error('Invalid data received from server');
+                return;
+            }
+            
+            // Hitung progress dari data yang ada
+            const totalPorts = data.total_ports || 1;
+            const currentProgress = data.progress || 0;
+            const progressRatio = currentProgress / totalPorts;
+            const progressPercent = Math.round(progressRatio * 100);
+            
+            console.log(`Progress: ${currentProgress}/${totalPorts} = ${progressPercent}%`);
+            
+            // Update progress bar
+            $('#scan-progress-bar').css('width', progressPercent + '%');
+            $('#progress-percent').text(progressPercent + '%');
+            
+            // Update open ports
+            if (data.open_ports && data.open_ports.length > 0) {
+                console.log('Updating open ports:', data.open_ports.length);
+                updateOpenPorts(data.open_ports);
+            }
+            
+            // Check if scan is complete
+            if (data.status === 'completed' || data.status === 'failed') {
+                console.log('Scan status changed to:', data.status);
+                // Stop automatic updates
+                if (updateIntervalId) {
+                    console.log('Stopping update interval');
+                    clearInterval(updateIntervalId);
+                    updateIntervalId = null;
+                }
+                
+                // Update status badge
+                $('#scan-status-badge')
+                    .removeClass('bg-warning')
+                    .addClass(data.status === 'completed' ? 'bg-success' : 'bg-danger')
+                    .text(data.status === 'completed' ? 'Completed' : 'Failed');
+                
+                // Display final results
+                displayFinalResults(data);
+                
+                // Add to history if not already there
+                if (historyLoaded) {
+                    loadScanHistory();
+                }
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error updating status:', error);
         }
     });
 }
@@ -185,6 +273,8 @@ function displayFinalResults(data) {
     
     // Show results section
     $('#scan-results').show();
+    // Hide current scan section after showing results
+    $('#current-scan').hide();
 }
 
 // Load scan history
@@ -295,7 +385,7 @@ function loadScanDetails(scanId) {
     });
 }
 
-// Tambahkan fungsi untuk export PDF
+// Fungsi untuk export PDF
 function exportToPdf(scanId) {
     if (!scanId) return;
     
@@ -312,31 +402,3 @@ function exportToPdf(scanId) {
     link.click();
     document.body.removeChild(link);
 }
-
-// Tambahkan event listener untuk export PDF button
-$(document).ready(function() {
-    // Existing handlers
-    $('#scan-form').on('submit', function(e) {
-        e.preventDefault();
-        startScan();
-    });
-    
-    // Load scan history
-    loadScanHistory();
-    
-    // Add PDF export button handler
-    $(document).on('click', '#export-pdf-btn', function() {
-        exportToPdf(currentScanId);
-    });
-    
-    // Validate port range inputs
-    $('#port_range_start, #port_range_end').on('change', function() {
-        const start = parseInt($('#port_range_start').val());
-        const end = parseInt($('#port_range_end').val());
-        
-        if (start > end) {
-            alert('Start port must be less than or equal to end port');
-            $(this).val($(this).attr('id') === 'port_range_start' ? end : start);
-        }
-    });
-});
